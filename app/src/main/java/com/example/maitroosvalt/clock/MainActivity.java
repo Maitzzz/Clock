@@ -62,10 +62,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private ArrayList<LatLng> sinceLastWP = new ArrayList<LatLng>();
     private ArrayList<LatLng> sinceLastReset = new ArrayList<LatLng>();
-    private double wpDistance;
+    private double wpDistance = 0;
     private double stepDistance;
-    private double cResetDistance;
-    private double totalDistance;
+    private double cResetDistance = 0;
+    private double totalDistance = 0;
 
 
     private int markerCount = 0;
@@ -139,9 +139,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mBroadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
+                Log.d(TAG,intent.getAction());
+
                 switch (intent.getAction()) {
                     case "notification-broadcast-addwaypoint":
                         createWayPoint();
+                        return;
+                    case "notification-broadcast-reset":
+                        resetDistance();
                         return;
                     default:
                         return;
@@ -151,9 +156,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         IntentFilter intentFilter = new IntentFilter();
 
-        /*intentFilter.addAction("notification-broadcast-addwaypoint");
-        intentFilter.addAction("notification-broadcast-resettripmeter");*/
         intentFilter.addAction("notification-broadcast");
+        intentFilter.addAction("notification-broadcast-reset");
         intentFilter.addAction("notification-broadcast-addwaypoint");
         registerReceiver(mBroadcastReceiver, intentFilter);
 
@@ -328,10 +332,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     public void buttonCResetClicked(View view){
-        cResetDistance = 0;
-        updateCresetLine((double) 0);
-        textViewCResetDistance.setText(String.valueOf(cResetDistance));
-        sinceLastReset.clear();
+        resetDistance();
     }
 
     @Override
@@ -376,9 +377,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
           //  double totalLineDistance = SphericalUtil.computeLength(points);
             double totalLineDistance = latlngListDistance(points);
 
-            TextView TextViewTotalLineDistance = (TextView) findViewById(R.id.textview_total_line);
-            TextViewTotalLineDistance.setText(String.valueOf(Math.round(totalLineDistance)));
-
+            textViewTotalLine.setText(String.valueOf(Math.round(totalLineDistance)));
 
             if (lastWP != null) {
                 sinceLastWP.add(newPoint);
@@ -392,8 +391,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             cResetDistance +=stepDistance;
             updateTextViews();
 
-
             updateCresetLine(latlngListDistance(sinceLastReset));
+            buttonNotificationCustomLayout();
+
         }
 
 
@@ -508,13 +508,18 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
    }
 
 
-public void buttonNotificationCustomLayout() {
+    public void buttonNotificationCustomLayout() {
 
-        // get the view layout
         RemoteViews remoteView = new RemoteViews(
                 getPackageName(), R.layout.notify);
 
-        // define intents
+        PendingIntent pIntentReset = PendingIntent.getBroadcast(
+                this,
+                0,
+                new Intent("notification-broadcast-reset"),
+                0
+        );
+
         PendingIntent pIntentAddWaypoint = PendingIntent.getBroadcast(
                 this,
                 0,
@@ -522,18 +527,34 @@ public void buttonNotificationCustomLayout() {
                 0
         );
 
-        // attach events
-        remoteView.setOnClickPendingIntent(R.id.buttonAddWayPoint, pIntentAddWaypoint);
+        PendingIntent pIntentOpenActivity = PendingIntent.getActivity(
+                this,
+                0,
+                new Intent(this, MainActivity.class),
+                PendingIntent.FLAG_UPDATE_CURRENT
+        );
 
-        // build notification
+
+        remoteView.setOnClickPendingIntent(R.id.buttonAddWayPoint, pIntentAddWaypoint);
+        remoteView.setOnClickPendingIntent(R.id.buttonOpenActivity, pIntentOpenActivity);
+        remoteView.setOnClickPendingIntent(R.id.buttonReset, pIntentReset);
+
+        remoteView.setTextViewText(R.id.textViewDistance, String.format("%.0f", totalDistance));
+        remoteView.setTextViewText(R.id.textViewWP, String.format("%.0f", cResetDistance));
+
         NotificationCompat.Builder mBuilder =
                 new NotificationCompat.Builder(this)
                         .setContent(remoteView)
                         .setSmallIcon(R.drawable.ic_location_on_white_24dp);
 
-        // notify
+
         mNotificationManager.notify(4, mBuilder.build());
+    }
 
-
+    public void resetDistance(){
+        cResetDistance = 0;
+        updateCresetLine((double) 0);
+        textViewCResetDistance.setText(String.valueOf(cResetDistance));
+        sinceLastReset.clear();
     }
 }
