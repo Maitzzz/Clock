@@ -60,6 +60,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private String provider;
 
     private ArrayList<LatLng> sinceLastWP = new ArrayList<LatLng>();
+    private ArrayList<LatLng> sinceLastReset = new ArrayList<LatLng>();
     private double wpDistance;
     private double stepDistance;
     private double cResetDistance;
@@ -133,7 +134,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         textViewTotalDistance = (TextView)findViewById(R.id.textview_total_distance);
         textViewTotalLine = (TextView)findViewById(R.id.textview_total_line);
 
-
         Intent mNotifyintent = new Intent("notification-broadcast");
 
         PendingIntent mNotifyPendingIntent = PendingIntent.getBroadcast (this, 0, mNotifyintent, 0);
@@ -141,11 +141,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this);
         mBuilder.setSmallIcon(R.drawable.ic_location_on_white_24dp);
         mBuilder.setContentText("Tracker is running");
-        mBuilder.setAutoCancel(true);
         mBuilder.setColor(0x0080000);
         mBuilder.addAction(R.drawable.ic_location_on_white_24dp, "Create waypoint!", mNotifyPendingIntent);
         mBuilder.setContentTitle("Tracker");
-        mBuilder.setContentIntent(PendingIntent.getActivity(this, 0, new Intent(), 0));
+        mBuilder.setContentIntent(mNotifyPendingIntent);
+
+
 
         mNotificationManager.notify(3, mBuilder.build());
         mBroadcastReceiver = new BroadcastReceiver() {
@@ -328,7 +329,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     public void buttonCResetClicked(View view){
         cResetDistance = 0;
-        textViewCResetDistance.setText(0);
+        updateCresetLine((double) 0);
+        textViewCResetDistance.setText(String.valueOf(cResetDistance));
+        sinceLastReset.clear();
     }
 
     @Override
@@ -369,8 +372,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             List<LatLng> points = mPolyline.getPoints();
             points.add(newPoint);
             mPolyline.setPoints(points);
-
-            double totalLineDistance = SphericalUtil.computeLength(points);
+            sinceLastReset.add(newPoint);
+          //  double totalLineDistance = SphericalUtil.computeLength(points);
+            double totalLineDistance = latlngListDistance(points);
 
             TextView TextViewTotalLineDistance = (TextView) findViewById(R.id.textview_total_line);
             TextViewTotalLineDistance.setText(String.valueOf(Math.round(totalLineDistance)));
@@ -378,19 +382,20 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             if (lastWP != null) {
                 sinceLastWP.add(newPoint);
-
+                wpDistance +=stepDistance;
                 double totalLineDistanceWP = latlngListDistance(sinceLastWP);
-                Log.d(TAG, String.valueOf(totalLineDistanceWP)+ " - - - - - - ");
-
+                textViewWPLine.setText(String.valueOf(Math.round(totalLineDistanceWP)));
             }
 
             stepDistance=locationPrevious.distanceTo(location);
             totalDistance+=stepDistance;
             cResetDistance +=stepDistance;
-            wpDistance +=stepDistance;
             updateTextViews();
 
+
+            updateCresetLine(latlngListDistance(sinceLastReset));
         }
+
 
 
 
@@ -488,7 +493,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         double totalDistance = 0;
 
         for (int i = 0; i + 1 < locations.size(); i++) {
-            totalDistance += directDistanceBetweenPoints(locations.get(i), locations.get(i++));
+            totalDistance += directDistanceBetweenPoints(locations.get(i), locations.get(i + 1));
         }
 
         return totalDistance;
@@ -497,4 +502,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void setSpeed() {
         textViewSpeed.setText(String.valueOf(Math.round(stepDistance/(500 * 0.001))));
     }
+
+    public void updateCresetLine(double value) {
+        textViewCResetLine.setText(String.valueOf(Math.round(value)));
+    }
+
+
 }
