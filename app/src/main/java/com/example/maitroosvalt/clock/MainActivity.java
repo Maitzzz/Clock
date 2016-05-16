@@ -27,6 +27,7 @@ import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.AdapterView;
+import android.widget.RemoteViews;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -134,31 +135,30 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         textViewTotalDistance = (TextView)findViewById(R.id.textview_total_distance);
         textViewTotalLine = (TextView)findViewById(R.id.textview_total_line);
 
-        Intent mNotifyintent = new Intent("notification-broadcast");
 
-        PendingIntent mNotifyPendingIntent = PendingIntent.getBroadcast (this, 0, mNotifyintent, 0);
-
-        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this);
-        mBuilder.setSmallIcon(R.drawable.ic_location_on_white_24dp);
-        mBuilder.setContentText("Tracker is running");
-        mBuilder.setColor(0x0080000);
-        mBuilder.addAction(R.drawable.ic_location_on_white_24dp, "Create waypoint!", mNotifyPendingIntent);
-        mBuilder.setContentTitle("Tracker");
-        mBuilder.setContentIntent(mNotifyPendingIntent);
-
-
-
-        mNotificationManager.notify(3, mBuilder.build());
         mBroadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                createWayPoint();
+                switch (intent.getAction()) {
+                    case "notification-broadcast-addwaypoint":
+                        createWayPoint();
+                        return;
+                    default:
+                        return;
+                }
             }
         };
 
         IntentFilter intentFilter = new IntentFilter();
+
+        /*intentFilter.addAction("notification-broadcast-addwaypoint");
+        intentFilter.addAction("notification-broadcast-resettripmeter");*/
         intentFilter.addAction("notification-broadcast");
+        intentFilter.addAction("notification-broadcast-addwaypoint");
         registerReceiver(mBroadcastReceiver, intentFilter);
+
+        buttonNotificationCustomLayout();
+
     }
 
     @Override
@@ -505,7 +505,35 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     public void updateCresetLine(double value) {
         textViewCResetLine.setText(String.valueOf(Math.round(value)));
+   }
+
+
+public void buttonNotificationCustomLayout() {
+
+        // get the view layout
+        RemoteViews remoteView = new RemoteViews(
+                getPackageName(), R.layout.notify);
+
+        // define intents
+        PendingIntent pIntentAddWaypoint = PendingIntent.getBroadcast(
+                this,
+                0,
+                new Intent("notification-broadcast-addwaypoint"),
+                0
+        );
+
+        // attach events
+        remoteView.setOnClickPendingIntent(R.id.buttonAddWayPoint, pIntentAddWaypoint);
+
+        // build notification
+        NotificationCompat.Builder mBuilder =
+                new NotificationCompat.Builder(this)
+                        .setContent(remoteView)
+                        .setSmallIcon(R.drawable.ic_location_on_white_24dp);
+
+        // notify
+        mNotificationManager.notify(4, mBuilder.build());
+
+
     }
-
-
 }
